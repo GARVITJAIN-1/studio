@@ -196,7 +196,7 @@ export default function Home() {
                             <Input
                               placeholder="https://example.com/document.pdf"
                               {...field}
-                              disabled={isPending || !user}
+                              disabled={isPending}
                             />
                           </FormControl>
                           <FormMessage />
@@ -215,19 +215,14 @@ export default function Home() {
                               className="resize-none border-2 focus-visible:ring-primary"
                               rows={4}
                               {...field}
-                              disabled={isPending || !user}
+                              disabled={isPending}
                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                     {!user && (
-                      <p className="text-sm text-center text-muted-foreground">
-                        Please sign in to upload documents and ask questions.
-                      </p>
-                    )}
-                    <Button type="submit" disabled={isPending || !user} className="w-full text-lg">
+                    <Button type="submit" disabled={isPending} className="w-full text-lg">
                       {isPending ? (
                         <Loader2 className="animate-spin" />
                       ) : (

@@ -41,7 +41,10 @@ export async function processQuery(input: ProcessQueryInput): Promise<ProcessQue
 
   const output = llmResponse.output!;
 
+  // Note: auth.currentUser may be null if the user is not signed in
   const user = auth.currentUser;
+  
+  // Only save to Firestore if the user is logged in
   if (user && firestore) {
     await addDoc(collection(firestore, 'questions'), {
       userId: user.uid,
