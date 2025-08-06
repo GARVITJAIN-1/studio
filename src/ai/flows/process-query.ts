@@ -43,7 +43,11 @@ export async function processQuery(input: ProcessQueryInput): Promise<ProcessQue
     }
   });
 
-  const output = llmResponse.output!;
+  const output = llmResponse.output;
+
+  if (!output) {
+    throw new Error('The AI failed to generate a response. Please try again.');
+  }
 
   // Note: auth.currentUser may be null if the user is not signed in
   const user = auth.currentUser;
