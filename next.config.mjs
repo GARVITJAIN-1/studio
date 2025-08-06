@@ -1,8 +1,5 @@
-// This file is deprecated. Please use next.config.mjs instead.
-import type {NextConfig} from 'next';
-
-const nextConfig: NextConfig = {
-  /* config options here */
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -25,6 +22,10 @@ const nextConfig: NextConfig = {
       }
     ],
   },
+  // This option increases the timeout for serverless functions on Vercel.
+  // The default is 10-15s, which may not be enough for document processing and AI generation.
+  // We'll set it to 60 seconds.
+  maxDuration: 60,
 };
 
 export default nextConfig;
