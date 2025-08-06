@@ -17,7 +17,7 @@ export type ProcessQueryInput = z.infer<typeof ProcessQueryInputSchema>;
 
 export const ProcessQueryOutputSchema = z.object({
   answer: z.string().describe('The answer to the question.'),
-  explanation: z.string().describe('An explanation of how the answer was derived from the document.'),
-  context: z.string().describe('The relevant snippet from the document that was used to answer the question.'),
+  explanation: z.string().describe('An explanation of the condition or how the answer was derived.'),
+  source: z.string().describe('The relevant clause or snippet from the document that was used to answer the question.'),
 });
 export type ProcessQueryOutput = z.infer<typeof ProcessQueryOutputSchema>;

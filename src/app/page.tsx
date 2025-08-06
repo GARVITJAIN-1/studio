@@ -109,7 +109,7 @@ function QuestionHistory() {
                         <p><strong>Answer:</strong> {item.answer}</p>
                         <p><strong>Explanation:</strong> {item.explanation}</p>
                         <div>
-                            <strong>Context:</strong>
+                            <strong>Source:</strong>
                             <blockquote className="mt-1 border-l-2 pl-3 italic text-sm text-muted-foreground">
                                 {item.context}
                             </blockquote>

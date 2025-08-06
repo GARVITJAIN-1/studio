@@ -21,18 +21,22 @@ const prompt = ai.definePrompt({
     name: 'processQueryPrompt',
     input: { schema: ProcessQueryInputSchema },
     output: { schema: ProcessQueryOutputSchema },
-    prompt: `You are an expert at analyzing documents and answering questions about them.
-    
-    Document URL: {{{documentUrl}}}
-    Question: {{{query}}}
-    
-    Please analyze the document at the given URL and provide a clear answer to the question.
-    In your response, include the answer, an explanation of your reasoning, and the specific context from the document that supports your answer.`
+    prompt: `You are an insurance policy assistant. Use the following context to answer the question.
+
+Context:
+{{{documentUrl}}}
+
+Question:
+{{{query}}}
+
+Instructions:
+- If answer found, explain the condition and quote the clause.
+- If not, respond with “Information not available.”`
 });
 
 export async function processQuery(input: ProcessQueryInput): Promise<ProcessQueryOutput> {
   const llmResponse = await ai.generate({
-    prompt: `Analyze the document at ${input.documentUrl} and answer the following question: "${input.query}". Provide the answer, an explanation, and the context from the document.`,
+    prompt: `You are an insurance policy assistant. Use the document at ${input.documentUrl} as context to answer the following question: "${input.query}". If the answer is found, explain the condition and quote the clause. If not, respond with "Information not available."`,
     model: 'googleai/gemini-2.0-flash',
     output: {
         schema: ProcessQueryOutputSchema,
@@ -52,7 +56,7 @@ export async function processQuery(input: ProcessQueryInput): Promise<ProcessQue
       questionText: input.query,
       answer: output.answer,
       explanation: output.explanation,
-      context: output.context,
+      context: output.source,
       askedAt: serverTimestamp(),
     });
   }
