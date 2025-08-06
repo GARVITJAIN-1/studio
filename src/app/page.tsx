@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Send, Bot, AlertTriangle } from 'lucide-react';
+import { Loader2, Send, Bot, AlertTriangle, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 
 import type { GenerateLLMResponseOutput } from '@/ai/flows/generate-llm-response';
 import { handleQuery } from '@/app/actions';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
@@ -23,6 +25,7 @@ export default function Home() {
   const [response, setResponse] = useState<GenerateLLMResponseOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { user, signInWithGoogle, logout } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -47,8 +50,29 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="container mx-auto flex items-center justify-center py-8 sm:py-12">
+      <header className="container mx-auto flex items-center justify-between py-8 sm:py-12">
         <Logo />
+        {user ? (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              {user.photoURL ? (
+                  <Image src={user.photoURL} alt={user.displayName || 'User'} width={32} height={32} className="rounded-full" />
+              ) : (
+                <UserIcon className="h-8 w-8 rounded-full border p-1" />
+              )}
+              <span className="hidden sm:inline">{user.displayName}</span>
+            </div>
+            <Button variant="outline" onClick={logout}>
+              <LogOut />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
+          </div>
+        ) : (
+          <Button onClick={signInWithGoogle}>
+            <LogIn />
+            Sign in with Google
+          </Button>
+        )}
       </header>
       <main className="flex-1">
         <div className="container mx-auto flex max-w-2xl flex-col items-center px-4">
@@ -67,17 +91,18 @@ export default function Home() {
                         <FormItem>
                           <FormControl>
                             <Textarea
-                              placeholder="e.g., What is the capital of France?"
+                              placeholder={user ? "e.g., What is the capital of France?" : "Please sign in to ask a question."}
                               className="resize-none border-2 focus-visible:ring-primary"
                               rows={4}
                               {...field}
+                              disabled={!user || isPending}
                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" disabled={isPending} className="w-full text-lg">
+                    <Button type="submit" disabled={!user || isPending} className="w-full text-lg">
                       {isPending ? (
                         <Loader2 className="animate-spin" />
                       ) : (
