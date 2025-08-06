@@ -1,4 +1,4 @@
-import type { DocumentReference, Timestamp } from 'firebase/firestore';
+import type { Timestamp } from 'firebase/firestore';
 
 /**
  * @fileoverview Defines the structure of a Question object in Firestore.
@@ -6,7 +6,7 @@ import type { DocumentReference, Timestamp } from 'firebase/firestore';
 
 export interface Question {
   id: string; // Firestore document ID
-  documentId: DocumentReference;
+  documentUrl: string;
   questionText: string;
   answer: string;
   explanation: string;
