@@ -91,18 +91,18 @@ export default function Home() {
                         <FormItem>
                           <FormControl>
                             <Textarea
-                              placeholder={user ? "e.g., What is the capital of France?" : "Please sign in to ask a question."}
+                              placeholder="e.g., What is the capital of France?"
                               className="resize-none border-2 focus-visible:ring-primary"
                               rows={4}
                               {...field}
-                              disabled={!user || isPending}
+                              disabled={isPending}
                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" disabled={!user || isPending} className="w-full text-lg">
+                    <Button type="submit" disabled={isPending} className="w-full text-lg">
                       {isPending ? (
                         <Loader2 className="animate-spin" />
                       ) : (
