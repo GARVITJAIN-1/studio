@@ -70,18 +70,19 @@ export default function Home() {
       });
 
       if (result.error) {
-        setError(result.error);
+        const errorMessage = result.error || 'An unexpected error occurred.';
+        setError(errorMessage);
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: result.error,
+          description: errorMessage,
         });
       } else if (result.data) {
         setResponses(result.data);
       }
     } catch (err: any) {
       console.error('Unexpected error:', err);
-      const errorMessage = err.message || 'An unexpected error occurred.';
+      const errorMessage = err.message || 'An unexpected error occurred on the client.';
       setError(errorMessage);
        toast({
           variant: 'destructive',

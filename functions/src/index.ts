@@ -13,60 +13,19 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 
-// Import Genkit and Zod for defining schemas and flows
-import { genkit, z } from "genkit";
-import { googleAI } from "@genkit-ai/googleai";
-import { firebase } from "@genkit-ai/firebase";
+// Import the Genkit flow that contains the core logic
+import { processQuery as processQueryFlow } from "./flows/process-query";
 
-// Initialize Genkit with Firebase and Google AI plugins
-genkit({
-  plugins: [
-    firebase(),
-    googleAI(),
-  ],
-  logSinks: ["firebase"],
-  enableTracingAndMetrics: true,
-});
-
-// Define the output schema for a single query response
-const ProcessQueryOutputSchema = z.object({
-  answer: z.string().describe("The answer to the question."),
-  explanation: z.string().describe("An explanation of the condition or how the answer was derived."),
-  source: z.string().describe("The relevant clause or snippet from the document that was used to answer the question."),
-  questionText: z.string().describe("The original question text."),
-});
-
-// Define the Genkit flow
-const processQueryFlow = async (documentUrl: string, query: string) => {
-  const prompt = `You are an insurance policy assistant. Use the document at ${documentUrl} as context to answer the following question: "${query}". 
-  If the answer is found, explain the condition and quote the clause. 
-  If not, respond with "Information not available."`;
-
-  const llmResponse = await genkit.generate({
-    model: 'googleai/gemini-2.0-flash',
-    prompt: prompt,
-    output: {
-      schema: z.object({
-        answer: z.string(),
-        explanation: z.string(),
-        source: z.string(),
-      })
-    }
-  });
-
-  const output = llmResponse.output;
-  if (!output) {
-    throw new HttpsError('internal', 'The AI failed to generate a response.');
-  }
-
-  return {
-    ...output,
-    questionText: query, // Include the original question in the response
-  };
-};
+// Define the output schema for a single query response, including the original question
+interface ProcessedQueryOutput {
+  answer: string;
+  explanation: string;
+  source: string;
+  questionText: string;
+}
 
 // Export the HTTPS Callable Function
-export const processQuery = onCall(async (request) => {
+export const processQuery = onCall(async (request): Promise<ProcessedQueryOutput[]> => {
   logger.info("processQuery function invoked", { data: request.data });
 
   const { documentUrl, queries } = request.data;
@@ -80,9 +39,15 @@ export const processQuery = onCall(async (request) => {
   }
 
   try {
-    // Process each query in parallel
+    // Process each query in parallel by calling the Genkit flow
     const results = await Promise.all(
-      queries.map(query => processQueryFlow(documentUrl, query))
+      queries.map(async (query: string) => {
+        const result = await processQueryFlow({ documentUrl, query });
+        return {
+          ...result,
+          questionText: query, // Ensure the original question is in the response
+        };
+      })
     );
 
     logger.info("Successfully processed queries", { count: results.length });
@@ -93,7 +58,7 @@ export const processQuery = onCall(async (request) => {
     if (error instanceof HttpsError) {
       throw error;
     }
-    // Re-throw other errors as internal errors
-    throw new HttpsError('internal', 'An unexpected error occurred while processing your request.');
+    // Re-throw other errors as internal errors with a more descriptive message
+    throw new HttpsError('internal', 'An unexpected error occurred while processing your request with the AI.', { error });
   }
 });
