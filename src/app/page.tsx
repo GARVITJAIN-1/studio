@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/use-auth';
 import { AlertTriangle } from 'lucide-react';
 import { processQuery } from '@/lib/client-functions';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/logo';
 
 interface ProcessQueryOutput {
@@ -38,6 +38,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { user, signInWithGoogle, logout } = useAuth();
+  const { toast } = useToast();
 
   const {
     register,
