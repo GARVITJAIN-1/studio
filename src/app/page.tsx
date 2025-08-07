@@ -1,129 +1,42 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition } from 'react';
 import Image from 'next/image';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Send, Bot, AlertTriangle, LogIn, LogOut, User as UserIcon, History } from 'lucide-react';
-import { collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+import { Loader2, Send, Bot, AlertTriangle, LogIn, LogOut, User as UserIcon, Plus, X } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
-import type { ProcessQueryOutput } from '@/ai/schemas/process-query-schema';
-import { ProcessQueryInputSchema } from '@/ai/schemas/process-query-schema';
-import { processQueryAction } from '@/app/actions';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormMessage, FormLabel } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Logo } from '@/components/logo';
 import { Input } from '@/components/ui/input';
-import { firestore } from '@/lib/firebase';
-import type { Question } from '@/lib/types/question';
+import { app } from '@/lib/firebase';
+import { toast } from '@/hooks/use-toast';
 
-
-const formSchema = ProcessQueryInputSchema;
-
-interface QuestionWithId extends Question {
-  id: string;
+// Define the expected output from the function for a single question
+interface ProcessQueryOutput {
+  answer: string;
+  explanation: string;
+  source: string;
+  questionText: string;
 }
 
-function QuestionHistory() {
-  const { user } = useAuth();
-  const [history, setHistory] = useState<QuestionWithId[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) {
-      setHistory([]);
-      setLoading(false);
-      return;
-    };
-
-    setLoading(true);
-    const q = query(
-        collection(firestore, "questions"), 
-        where("userId", "==", user.uid),
-        orderBy("askedAt", "desc")
-    );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const newHistory: QuestionWithId[] = [];
-      querySnapshot.forEach((doc) => {
-        newHistory.push({ id: doc.id, ...(doc.data() as Question) });
-      });
-      setHistory(newHistory);
-      setLoading(false);
-    }, (error) => {
-        console.error("Error fetching question history: ", error);
-        setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  if (loading) {
-    return (
-        <Card className="w-full shadow-lg">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-3 font-headline text-xl"><History /> Question History</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-            </CardContent>
-        </Card>
-    )
-  }
-
-  if (history.length === 0) {
-    return (
-        <Card className="w-full shadow-lg">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-3 font-headline text-xl"><History /> Question History</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p>No questions asked yet.</p>
-            </CardContent>
-        </Card>
-    )
-  }
-
-  return (
-    <Card className="w-full shadow-lg">
-        <CardHeader>
-            <CardTitle className="flex items-center gap-3 font-headline text-xl"><History /> Question History</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-            {history.map((item) => (
-                <Card key={item.id}>
-                    <CardHeader>
-                        <CardTitle className="text-lg">{item.questionText}</CardTitle>
-                        <CardDescription>
-                          Asked at: {item.askedAt ? (item.askedAt as Timestamp).toDate().toLocaleString() : 'N/A'}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        <p><strong>Answer:</strong> {item.answer}</p>
-                        <p><strong>Explanation:</strong> {item.explanation}</p>
-                        <div>
-                            <strong>Source:</strong>
-                            <blockquote className="mt-1 border-l-2 pl-3 italic text-sm text-muted-foreground">
-                                {item.context}
-                            </blockquote>
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-        </CardContent>
-    </Card>
-  )
-}
+// Define the schema for the form
+const formSchema = z.object({
+  documentUrl: z.string().url({ message: 'Please enter a valid URL.' }),
+  questions: z.array(z.object({
+    value: z.string().min(1, { message: 'Question cannot be empty.' }),
+  })).min(1, { message: 'Please ask at least one question.' }),
+});
 
 export default function Home() {
-  const [response, setResponse] = useState<ProcessQueryOutput | null>(null);
+  const [responses, setResponses] = useState<ProcessQueryOutput[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { user, signInWithGoogle, logout } = useAuth();
@@ -132,20 +45,48 @@ export default function Home() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       documentUrl: '',
-      query: '',
+      questions: [{ value: '' }],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "questions"
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setError(null);
-    setResponse(null);
+    setResponses([]);
+
+    if (!app) {
+      setError("Firebase is not initialized. Please check your configuration.");
+      return;
+    }
+
     startTransition(async () => {
-      const result = await processQueryAction(values);
-      if (result.error) {
-        setError(result.error);
-        setResponse(null);
-      } else if (result.response) {
-        setResponse(result.response);
+      try {
+        const functions = getFunctions(app, 'us-central1');
+        const processQuery = httpsCallable(functions, 'processQuery');
+        
+        const questionsArray = values.questions.map(q => q.value);
+
+        const result: any = await processQuery({ 
+          documentUrl: values.documentUrl,
+          queries: questionsArray,
+        });
+        
+        const data = result.data as ProcessQueryOutput[];
+        setResponses(data);
+
+      } catch (e: any) {
+        console.error(e);
+        const errorMessage = e.message || 'An unexpected error occurred.';
+        setError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        })
       }
     });
   }
@@ -203,25 +144,42 @@ export default function Home() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="query"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Question</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="e.g., What is the main topic of the document?"
-                              className="resize-none border-2 focus-visible:ring-primary"
-                              rows={4}
-                              {...field}
-                              disabled={isPending}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    
+                    {fields.map((item, index) => (
+                       <FormField
+                          key={item.id}
+                          control={form.control}
+                          name={`questions.${index}.value`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Question {index + 1}</FormLabel>
+                              <FormControl>
+                                <div className="flex items-center gap-2">
+                                <Textarea
+                                  placeholder="e.g., What is the main topic of the document?"
+                                  className="resize-none border-2 focus-visible:ring-primary"
+                                  rows={2}
+                                  {...field}
+                                  disabled={isPending}
+                                />
+                                {fields.length > 1 && (
+                                  <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)} disabled={isPending}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                    ))}
+
+                    <Button type="button" variant="outline" onClick={() => append({ value: "" })} disabled={isPending}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Question
+                    </Button>
+                    
                     <Button type="submit" disabled={isPending} className="w-full text-lg">
                       {isPending ? (
                         <Loader2 className="animate-spin" />
@@ -255,7 +213,7 @@ export default function Home() {
                    <CardTitle className="flex items-center gap-2 font-headline text-destructive">
                      <AlertTriangle />
                      Error
-                   </CardTitle>
+                   </Title>
                  </CardHeader>
                  <CardContent>
                    <p className="text-foreground">{error}</p>
@@ -263,21 +221,35 @@ export default function Home() {
                </Card>
              )}
 
-            {response && (
-              <Card className="w-full animate-in fade-in-50 shadow-lg">
-                <CardHeader className="flex flex-row items-center gap-3">
-                  <Bot className="h-6 w-6" />
-                  <CardTitle className="font-headline text-xl">Response</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="text-sm text-foreground bg-muted p-4 rounded-md overflow-x-auto">
-                    {JSON.stringify(response, null, 2)}
-                  </pre>
-                </CardContent>
-              </Card>
+            {responses.length > 0 && (
+              <div className="w-full space-y-4">
+                {responses.map((response, index) => (
+                  <Card key={index} className="w-full animate-in fade-in-50 shadow-lg">
+                    <CardHeader className="flex flex-row items-center gap-3">
+                      <Bot className="h-6 w-6" />
+                      <CardTitle className="font-headline text-xl">Response to: "{response.questionText}"</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                       <div>
+                         <p className="font-semibold">Answer:</p>
+                         <p>{response.answer}</p>
+                       </div>
+                       <div>
+                         <p className="font-semibold">Explanation:</p>
+                         <p>{response.explanation}</p>
+                       </div>
+                       <div>
+                         <p className="font-semibold">Source:</p>
+                         <blockquote className="mt-1 border-l-2 pl-3 italic text-sm text-muted-foreground">
+                            {response.source}
+                         </blockquote>
+                       </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </div>
-          {user && <QuestionHistory />}
         </div>
       </main>
       <footer className="container mx-auto py-8 text-center text-muted-foreground">

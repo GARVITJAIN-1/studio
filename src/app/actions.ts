@@ -1,4 +1,7 @@
 'use server';
+// This file is no longer used for the primary form action, 
+// as the client now calls the Firebase Function directly.
+// It is kept for reference or potential future use with other server actions.
 
 import { generateLLMResponse, type GenerateLLMResponseOutput } from '@/ai/flows/generate-llm-response';
 import { processQuery } from '@/ai/flows/process-query';
