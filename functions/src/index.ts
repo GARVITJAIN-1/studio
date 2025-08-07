@@ -69,11 +69,6 @@ const processQueryFlow = async (documentUrl: string, query: string) => {
 export const processQuery = onCall(async (request) => {
   logger.info("processQuery function invoked", { data: request.data });
 
-  // Enforce authentication
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'You must be signed in to use this feature.');
-  }
-
   const { documentUrl, queries } = request.data;
 
   // Validate input

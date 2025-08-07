@@ -7,9 +7,6 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { auth } from '@/lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { firestore } from '@/lib/firebase';
 import { 
   ProcessQueryInput,
   ProcessQueryInputSchema,
@@ -47,22 +44,6 @@ export async function processQuery(input: ProcessQueryInput): Promise<ProcessQue
 
   if (!output) {
     throw new Error('The AI failed to generate a response. Please try again.');
-  }
-
-  // Note: auth.currentUser may be null if the user is not signed in
-  const user = auth.currentUser;
-  
-  // Only save to Firestore if the user is logged in
-  if (user && firestore) {
-    await addDoc(collection(firestore, 'questions'), {
-      userId: user.uid,
-      documentUrl: input.documentUrl,
-      questionText: input.query,
-      answer: output.answer,
-      explanation: output.explanation,
-      context: output.source,
-      askedAt: serverTimestamp(),
-    });
   }
 
   return output;

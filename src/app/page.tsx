@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useAuth } from '@/hooks/use-auth';
 import { AlertTriangle } from 'lucide-react';
 import { processQuery } from '@/lib/client-functions';
 import { useToast } from '@/hooks/use-toast';
@@ -37,7 +36,6 @@ export default function Home() {
   const [responses, setResponses] = useState<ProcessQueryOutput[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { user, signInWithGoogle, logout } = useAuth();
   const { toast } = useToast();
 
   const {
@@ -59,15 +57,6 @@ export default function Home() {
   });
 
   const onSubmit = async (values: FormValues) => {
-    if (!user) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Required',
-        description: 'You must be signed in to submit a query.',
-      });
-      return;
-    }
-
     setLoading(true);
     setResponses([]);
     setError(null);
@@ -108,11 +97,6 @@ export default function Home() {
      <div className="flex min-h-screen flex-col bg-background">
       <header className="container mx-auto flex items-center justify-between py-8 sm:py-12">
         <Logo />
-        {user ? (
-          <Button onClick={logout} variant="outline">Sign Out</Button>
-        ) : (
-          <Button onClick={signInWithGoogle}>Sign In</Button>
-        )}
       </header>
       <main className="flex-1 container mx-auto px-4 py-8">
         <Card className="max-w-3xl mx-auto shadow-lg">
