@@ -15,12 +15,10 @@ import * as logger from "firebase-functions/logger";
 
 // Import the Genkit flow that contains the core logic
 import { processQuery as processQueryFlow } from "./flows/process-query";
+import { ProcessQueryOutput } from "./schemas/process-query-schema";
 
 // Define the output schema for a single query response, including the original question
-interface ProcessedQueryOutput {
-  answer: string;
-  explanation: string;
-  source: string;
+interface ProcessedQueryOutput extends ProcessQueryOutput {
   questionText: string;
 }
 
