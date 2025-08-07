@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -86,7 +87,7 @@ export default function Home() {
           title: "Error",
           description: errorMessage,
           variant: "destructive"
-        })
+        });
       }
     });
   }
